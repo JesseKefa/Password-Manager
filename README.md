@@ -21,25 +21,25 @@ This is a simple password manager created as part of the CS255 Project 1. The ap
 
 Follow these steps to install and run the application:
 
-1. **Clone the Repository**  
+1. **Clone the Repository**:  
    Clone the repository to your local machine using the following command:
 
    ```bash
    git clone https://github.com/JesseKefa/Password-Manager.git
 
-2. **Navigate to the Project Directory**
+2. **Navigate to the Project Directory**:
     Change to the project directory:
 
     ```bash
     cd Password-Manager
 
-3. **Install the Dependencies**
+3. **Install the Dependencies**:
     Install the required dependencies using npm:
 
     ```bash
     npm install
 
-4. **Run the Application**
+4. **Run the Application**:
     Start the application by running:
 
     ```bash
