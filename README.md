@@ -30,22 +30,19 @@ Follow these steps to install and run the application:
 2. **Navigate to the Project Directory**
     Change to the project directory:
 
-    bash
-    Copy code
+    ```bash
     cd Password-Manager
 
 3. **Install the Dependencies**
     Install the required dependencies using npm:
 
-    bash
-    Copy code
+    ```bash
     npm install
 
 4. **Run the Application**
     Start the application by running:
 
-    bash
-    Copy code
+    ```bash
     npm start
 
 ## Usage
