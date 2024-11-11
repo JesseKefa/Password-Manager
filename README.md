@@ -1,4 +1,3 @@
-
 # Password Manager
 
 This is a simple password manager created as part of the CS255 Project 1. The application allows users to securely store and manage their passwords for various domains using a master password. The project is built using Node.js and is intended to be a CLI-based application.
@@ -20,52 +19,47 @@ This is a simple password manager created as part of the CS255 Project 1. The ap
 
 ## Installation
 
-1. Clone the repository:
+Follow these steps to install and run the application:
+
+1. **Clone the Repository**  
+   Clone the repository to your local machine using the following command:
 
    ```bash
    git clone https://github.com/JesseKefa/Password-Manager.git
-Navigate to the project directory:
 
-bash
-Copy code
-cd Password-Manager
-Install the necessary dependencies:
+2. **Navigate to the Project Directory**
+    Change to the project directory:
 
-bash
-Copy code
-npm install
-Run the application:
+    bash
+    Copy code
+    cd Password-Manager
 
-bash
-Copy code
-npm start
-Usage
+3. **Install the Dependencies**
+    Install the required dependencies using npm:
+
+    bash
+    Copy code
+    npm install
+
+4. **Run the Application**
+    Start the application by running:
+
+    bash
+    Copy code
+    npm start
+
+## Usage
+
 After starting the application, you'll be prompted to enter the master password. Once authenticated, you can choose one of the following actions:
 
-Set a password
-Get a password
-Remove a password
-Dump the database
-Load the database
-Exit
-Contributing
+**Set a Password**: Store a password for a specific domain.
+**Get a Password**: Retrieve a password for a given domain.
+**Remove a Password**: Delete a stored password.
+**Dump the Database**: Display all stored passwords in the database.
+**Load the Database**: Load an existing database from a file.
+**Exit**: Exit the application.
+
+## Contributing
+
 Feel free to fork this repository and submit pull requests. If you find any bugs or have suggestions for improvements, please open an issue or contact me directly.
 
-License
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-sql
-Copy code
-
-### Steps to create the `README.md` file:
-1. Open your project directory.
-2. Create a new file named `README.md`.
-3. Paste the above content into the file.
-4. Save the file.
-
-Once this is done, you can commit and push the `README.md` file to your GitHub repository:
-
-```bash
-git add README.md
-git commit -m "Added README file"
-git push origin master
