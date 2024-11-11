@@ -50,10 +50,15 @@ Follow these steps to install and run the application:
 After starting the application, you'll be prompted to enter the master password. Once authenticated, you can choose one of the following actions:
 
 **Set a Password**: Store a password for a specific domain.
+
 **Get a Password**: Retrieve a password for a given domain.
+
 **Remove a Password**: Delete a stored password.
+
 **Dump the Database**: Display all stored passwords in the database.
+
 **Load the Database**: Load an existing database from a file.
+
 **Exit**: Exit the application.
 
 ## Contributing
