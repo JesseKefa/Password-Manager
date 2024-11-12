@@ -40,35 +40,29 @@ To run the project locally, follow these steps:
 
 ## Short-answer Questions
 
-### 1. Briefly describe your method for preventing the adversary from learning information about the lengths of the passwords stored in your password manager.
+### 1. How do you prevent adversaries from learning the lengths of the passwords stored in your password manager?
 
-**Answer**:  
-To prevent an adversary from learning information about the lengths of passwords, we encrypt the passwords using AES encryption with a fixed key length. This ensures that regardless of the password length, the output ciphertext has a constant size. Additionally, we pad the password before encryption to ensure all encrypted passwords have the same length, further masking any pattern based on the original password length.
+To hide password lengths from an attacker, we use AES encryption with a fixed key length. This ensures that no matter the original password length, the ciphertext always has a consistent size. Additionally, we pad the password before encryption, so all encrypted passwords have the same length, further preventing any patterns that could reveal information about the password length.
 
-### 2. Briefly describe your method for preventing swap attacks (Section 2.2). Provide an argument for why the attack is prevented in your scheme.
+### 2. How do you prevent swap attacks, and why does your method work?
 
-**Answer**:  
-To prevent swap attacks, we use a deterministic encryption scheme where the ciphertext always has the same length for identical inputs. The padding of passwords ensures that no two passwords differ in size after encryption. Since the attacker cannot predict or observe any difference in size between encrypted passwords, they cannot infer the plaintext password or successfully swap encrypted password entries for a different domain.
+We protect against swap attacks by using deterministic encryption, meaning the ciphertext for the same input is always the same length. Padding ensures that all encrypted passwords are the same size, regardless of the original password length. Since attackers can’t tell the difference in size between passwords, they cannot swap them without detection.
 
-### 3. In our proposed defense against the rollback attack (Section 2.2), we assume that we can store the SHA-256 hash in a trusted location beyond the reach of an adversary. Is it necessary to assume that such a trusted location exists, in order to defend against rollback attacks? Briefly justify your answer.
+### 3. Is it necessary to store the SHA-256 hash in a trusted location to defend against rollback attacks? Why?
 
-**Answer**:  
-Yes, it is necessary to assume a trusted location to defend against rollback attacks. The SHA-256 hash stored in this trusted location acts as a marker for the most recent valid state of the password database. Without this secure reference, an attacker could potentially modify the password database and rollback to an earlier version without detection. The existence of a trusted location ensures that any rollback attempt can be detected by comparing the hash of the current database with the trusted reference.
+Yes, it is essential to have a trusted location for storing the SHA-256 hash. The hash acts as a marker for the most recent, valid state of the password database. Without this secure reference, an attacker could modify the database and roll it back to an earlier state without being detected. The trusted location allows us to verify the database’s integrity by comparing the current hash with the trusted one.
 
-### 4. Because HMAC is a deterministic MAC (that is, its output is the same if it is run multiple times with the same input), we were able to look up domain names using their HMAC values. There are also randomized MACs, which can output different tags on multiple runs with the same input. Explain how you would do the look up if you had to use a randomized MAC instead of HMAC. Is there a performance penalty involved, and if so, what?
+### 4. How would you handle lookups if using a randomized MAC instead of HMAC, and would this introduce a performance penalty?
 
-**Answer**:  
-If we used a randomized MAC, we would need to store the MAC tag itself along with the domain. Since the output of a randomized MAC varies on each run, performing a lookup by directly comparing the MAC tags would not be possible. To handle this, we could modify the lookup process to store the MAC tag for each domain in a separate index or database, ensuring that the randomized tags are consistent across queries. This would introduce a performance penalty, as each lookup would require the computation of the randomized MAC for comparison, which is slower than a deterministic HMAC-based lookup.
+With a randomized MAC, since the output varies on each run, directly comparing MAC tags for lookups wouldn’t work. To address this, we would store the MAC tag for each domain separately, so each tag is consistent for a given domain. However, this approach would introduce a performance penalty, as calculating and comparing randomized MACs is slower than using deterministic HMACs.
 
-### 5. In our specification, we leak the number of records in the password manager. Describe an approach to reduce the information leaked about the number of records. Specifically, if there are k records, your scheme should only leak log2(k) (that is, if k1 and k2 are such that log2(k1) = log2(k2), the attacker should not be able to distinguish between a case where the true number of records is k1 and another case where the true number of records is k2).
+### 5. How can you reduce information leakage about the number of records in the password manager?
 
-**Answer**:  
-To reduce the leakage of information about the number of records, we can use a padding scheme. Instead of storing records sequentially, we could pad the password manager’s internal structure (e.g., using dummy entries) to ensure that the number of actual records is hidden. By padding the number of records such that the total number of entries is always close to a power of two, we can limit the amount of information an attacker can deduce from the database size. This approach ensures that the number of records leaks only the logarithm of the true record count, making it difficult to distinguish between two cases with the same log2 value.
+To limit the leakage of record count information, we can pad the database by adding dummy entries. This ensures that the number of actual records remains hidden and is always close to a power of two. This way, an attacker cannot easily differentiate between different record counts, as the size of the database only reveals the logarithmic value of the number of records.
 
-### 6. What is a way we can add multi-user support for specific sites to our password manager system without compromising security for other sites that these users may wish to store passwords of? That is, if Alice and Bob wish to access one stored password (say for nytimes) that either of them can get and update, without allowing the other to access their passwords for other websites.
+### 6. How can you add multi-user support for specific sites without compromising security for other sites?
 
-**Answer**:  
-To enable multi-user support for specific sites, we can introduce a user-specific access control mechanism. For each site, we could store a list of user keys (or public keys) that are authorized to access the password. Each password could be encrypted with a unique key for each user, ensuring that Alice and Bob can both decrypt the password for `nytimes` but not passwords for other domains. The decryption process would involve verifying that the user's credentials match the encrypted key for that specific domain. This approach ensures that the password manager maintains secure isolation of passwords for different users while enabling shared access for specific sites.
+To enable multi-user support, we can encrypt each password with a unique key for each user. For instance, if Alice and Bob need access to the same password (e.g., for nytimes), they would both have their own keys to decrypt it. This ensures that while they can share access to certain passwords, they cannot access passwords for other domains. This method maintains the privacy of passwords across different users while enabling secure shared access where necessary.
 
 ## License
 
