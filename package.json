@@ -10,8 +10,10 @@
   "author": "Your Name",
   "license": "ISC",
   "dependencies": {
+    "crypto": "^1.0.1",
     "expect.js": "^0.3.1",
-    "mocha": "^9.1.4",
-    "crypto": "^1.0.1"
+    "inquirer": "^12.1.0",
+    "lowdb": "^7.0.1",
+    "mocha": "^9.1.4"
   }
 }

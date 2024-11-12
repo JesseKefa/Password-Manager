@@ -1,7 +1,8 @@
 "use strict";
 
 let expect = require('expect.js');
-const PasswordManager = require('../password-manager');
+const PasswordManager = require('../password-manager');  // Assuming this file exists and works with encryption
+const { encodeBuffer, decodeBuffer } = require('../lib');  // Importing helper functions from lib.js
 
 function expectReject(promise) {
     return promise.then(
@@ -141,6 +142,5 @@ describe('Password manager', async function() {
             expect(contentsObj.kvs).to.be.an('object');
             expect(Object.getOwnPropertyNames(contentsObj.kvs)).to.have.length(10);
         });
-
     });
 });
