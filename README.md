@@ -38,7 +38,7 @@ To run the project locally, follow these steps:
    node cli.js
    ```
 
-## Short-answer Questions
+## Questions
 
 ### 1. How do you prevent adversaries from learning the lengths of the passwords stored in your password manager?
 
