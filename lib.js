@@ -1,15 +1,28 @@
-const crypto = require('crypto');
-
-function encodeBuffer(input) {
-    return Buffer.from(input, 'utf8').toString('base64');
+// Converts string to buffer
+function stringToBuffer(string) {
+    return new TextEncoder().encode(string);
 }
 
-function decodeBuffer(input) {
-    return Buffer.from(input, 'base64').toString('utf8');
+// Converts buffer back to string
+function bufferToString(buffer) {
+    return new TextDecoder().decode(buffer);
 }
 
-function generateChecksum(data) {
-    return crypto.createHash('sha256').update(data).digest('base64');
+// Converts a buffer to Base64 encoded string
+function encodeBuffer(buffer) {
+    return Buffer.from(buffer).toString('base64');
 }
 
-module.exports = { encodeBuffer, decodeBuffer, generateChecksum };
+// Decodes a Base64 string back to a buffer
+function decodeBuffer(base64) {
+    return Buffer.from(base64, 'base64');
+}
+
+// Generates random bytes
+function getRandomBytes(length) {
+    const bytes = new Uint8Array(length);
+    window.crypto.getRandomValues(bytes);
+    return bytes;
+}
+
+module.exports = { stringToBuffer, bufferToString, encodeBuffer, decodeBuffer, getRandomBytes };

@@ -1,77 +1,66 @@
-const inquirer = require('inquirer');
-const { hashData, encryptData, decryptData, managePassword, loadPasswordData } = require('./password-manager');
+const readline = require('readline');
+const PasswordManager = require('./password-manager');
 
-// Function to display a menu of options to the user
-function mainMenu() {
-  inquirer
-    .prompt([
-      {
-        type: 'list',
-        name: 'action',
-        message: 'What would you like to do?',
-        choices: [
-          'Add a new password',
-          'Retrieve a password',
-          'Exit'
-        ]
-      }
-    ])
-    .then(answers => {
-      switch (answers.action) {
-        case 'Add a new password':
-          addNewPassword();
-          break;
-        case 'Retrieve a password':
-          retrievePassword();
-          break;
-        case 'Exit':
-          console.log('Goodbye!');
-          process.exit();
-      }
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+const passwordManager = new PasswordManager();
+
+function promptUser() {
+    rl.question('Enter master password: ', async (masterPassword) => {
+        console.log('\nChoose an action:');
+        console.log('1: Set a password');
+        console.log('2: Get a password');
+        console.log('3: Remove a password');
+        console.log('4: Dump the database');
+        console.log('5: Load the database');
+        console.log('6: Exit\n');
+
+        rl.question('Select an option: ', async (option) => {
+            if (option === '1') {
+                rl.question('Enter domain: ', async (domain) => {
+                    rl.question('Enter password: ', async (storedPassword) => {
+                        await passwordManager.set(masterPassword, domain, storedPassword);
+                        console.log('Password set successfully\n');
+                        promptUser();
+                    });
+                });
+            } else if (option === '2') {
+                rl.question('Enter domain: ', async (domain) => {
+                    const retrievedPassword = await passwordManager.get(masterPassword, domain);
+                    console.log(`Retrieved password: ${retrievedPassword || 'No password found'}\n`);
+                    promptUser();
+                });
+            } else if (option === '3') {
+                rl.question('Enter domain: ', async (domain) => {
+                    const success = await passwordManager.remove(masterPassword, domain);
+                    console.log(success ? 'Password removed successfully\n' : 'No password found\n');
+                    promptUser();
+                });
+            } else if (option === '4') {
+                const [dumpContents, checksum] = await passwordManager.dump();
+                console.log(`Database dump: ${dumpContents}`);
+                console.log(`Checksum: ${checksum}\n`);
+                promptUser();
+            } else if (option === '5') {
+                rl.question('Enter dump contents: ', async (dumpContents) => {
+                    rl.question('Enter checksum: ', async (checksum) => {
+                        const success = await passwordManager.load(masterPassword, dumpContents, checksum);
+                        console.log(success ? 'Database loaded successfully\n' : 'Failed to load database\n');
+                        promptUser();
+                    });
+                });
+            } else if (option === '6') {
+                console.log('Exiting...');
+                rl.close();
+            } else {
+                console.log('Invalid option, please try again.\n');
+                promptUser();
+            }
+        });
     });
 }
 
-// Add a new password to the password manager
-function addNewPassword() {
-  inquirer
-    .prompt([
-      {
-        type: 'input',
-        name: 'password',
-        message: 'Enter the password to add:'
-      }
-    ])
-    .then(answers => {
-      const key = crypto.randomBytes(32); // AES key (32 bytes for AES-256)
-      managePassword(answers.password, key);
-      mainMenu(); // Return to the main menu
-    });
-}
-
-// Retrieve a password from the password manager
-function retrievePassword() {
-  inquirer
-    .prompt([
-      {
-        type: 'input',
-        name: 'passwordHash',
-        message: 'Enter the hash of the password you want to retrieve:'
-      }
-    ])
-    .then(answers => {
-      const passwords = loadPasswordData();
-      const passwordData = passwords[answers.passwordHash];
-      
-      if (passwordData) {
-        const decryptedPassword = decryptData(passwordData.encryptedData, key, passwordData.iv);
-        console.log('Decrypted password:', decryptedPassword);
-      } else {
-        console.log('Password not found.');
-      }
-      
-      mainMenu(); // Return to the main menu
-    });
-}
-
-// Start the password manager CLI
-mainMenu();
+promptUser();

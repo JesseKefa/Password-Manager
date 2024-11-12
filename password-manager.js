@@ -1,72 +1,67 @@
-const crypto = require('crypto'); // Node's built-in crypto module
-const fs = require('fs'); // For file system operations
-const path = require('path');
+const crypto = require('crypto');
+const fs = require('fs');
 
-// Hashing function using SHA-256 in Node.js
-function hashData(data) {
-  const hash = crypto.createHash('sha256');
-  hash.update(data);
-  const hashHex = hash.digest('hex');
-  return hashHex;
+class PasswordManager {
+    constructor() {
+        this.kvs = {};  // Key-Value Store (for domains and passwords)
+        this.salt = crypto.randomBytes(16).toString('hex');
+    }
+
+    // Helper function to derive encryption key from master password and salt
+    _getKey(masterPassword) {
+        return crypto.pbkdf2Sync(masterPassword, this.salt, 100000, 32, 'sha256');
+    }
+
+    // Set a password for a domain
+    async set(masterPassword, domain, password) {
+        const key = this._getKey(masterPassword);
+        const iv = crypto.randomBytes(16);
+        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+        let encryptedPassword = cipher.update(password, 'utf8', 'hex');
+        encryptedPassword += cipher.final('hex');
+        this.kvs[domain] = { encryptedPassword, iv: iv.toString('hex') };
+    }
+
+    // Get a password for a domain
+    async get(masterPassword, domain) {
+        if (this.kvs[domain]) {
+            const { encryptedPassword, iv } = this.kvs[domain];
+            const key = this._getKey(masterPassword);
+            const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(iv, 'hex'));
+            let decryptedPassword = decipher.update(encryptedPassword, 'hex', 'utf8');
+            decryptedPassword += decipher.final('utf8');
+            return decryptedPassword;
+        } else {
+            return null; // No password found for the domain
+        }
+    }
+
+    // Remove a password for a domain
+    async remove(masterPassword, domain) {
+        if (this.kvs[domain]) {
+            delete this.kvs[domain];
+            return true;
+        }
+        return false; // No password found for the domain
+    }
+
+    // Dump the database contents
+    async dump() {
+        const dumpContents = JSON.stringify(this.kvs);
+        const checksum = crypto.createHash('sha256').update(dumpContents).digest('hex');
+        return [dumpContents, checksum];
+    }
+
+    // Load the database from dump contents
+    async load(masterPassword, dumpContents, checksum) {
+        const newChecksum = crypto.createHash('sha256').update(dumpContents).digest('hex');
+        if (newChecksum !== checksum) {
+            return false; // Checksum mismatch
+        }
+        const parsedContents = JSON.parse(dumpContents);
+        this.kvs = parsedContents;
+        return true;
+    }
 }
 
-// AES encryption using AES-256-CBC in Node.js
-function encryptData(data, key) {
-  const iv = crypto.randomBytes(16); // Generate random IV
-  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-  let encrypted = cipher.update(data, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  return {
-    encryptedData: encrypted,
-    iv: iv.toString('hex')
-  };
-}
-
-// AES decryption using AES-256-CBC in Node.js
-function decryptData(encryptedData, key, ivHex) {
-  const iv = Buffer.from(ivHex, 'hex'); // Convert the IV back from hex
-  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-  let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
-}
-
-// Save data to a file (JSON format)
-function savePasswordData(passwords) {
-  const filePath = path.join(__dirname, 'passwords.json');
-  fs.writeFileSync(filePath, JSON.stringify(passwords, null, 2)); // Store passwords as JSON
-}
-
-// Load data from the file
-function loadPasswordData() {
-  const filePath = path.join(__dirname, 'passwords.json');
-  if (fs.existsSync(filePath)) {
-    const rawData = fs.readFileSync(filePath);
-    return JSON.parse(rawData);
-  }
-  return {}; // Return empty object if file doesn't exist
-}
-
-// Example: Save and load passwords
-function managePassword(data, key) {
-  let passwords = loadPasswordData();
-  
-  const hash = hashData(data); // Hash the password
-  console.log('Password hash:', hash);
-
-  // Encrypt and save the password
-  const { encryptedData, iv } = encryptData(data, key);
-  passwords[hash] = { encryptedData, iv };
-  savePasswordData(passwords);
-
-  console.log('Password encrypted and saved successfully.');
-  return hash;
-}
-
-// Example usage
-const key = crypto.randomBytes(32); // AES key (32 bytes for AES-256)
-const password = "MySuperSecretPassword123!";
-
-const passwordHash = managePassword(password, key);
-
-// To decrypt, you would call decryptData() with the encrypted password and IV
+module.exports = PasswordManager;
