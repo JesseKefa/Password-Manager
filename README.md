@@ -75,9 +75,3 @@ To enable multi-user support for specific sites, we can introduce a user-specifi
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 ```
 
-### Steps to Use:
-1. Copy the above content into a file named `README.md` in the root directory of your GitHub repository.
-2. Push your code and README file to your GitHub repository.
-3. Share the link to your repository in the submission as required.
-
-This `README.md` contains both the project details and answers to the short questions as requested. Let me know if you need further adjustments!
