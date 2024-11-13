@@ -1,179 +1,66 @@
-// Import necessary modules
-const { subtle } = require('crypto').webcrypto;
-const { stringToBuffer, bufferToString, encodeBuffer, decodeBuffer, getRandomBytes } = require('./lib');
+const crypto = require('crypto');
+const fs = require('fs');
 
-// Main PasswordManager class
 class PasswordManager {
-    constructor(hmacKey, aesKey, kvs = {}) {
-        this.hmacKey = hmacKey;
-        this.aesKey = aesKey;
-        this.kvs = kvs;
+    constructor() {
+        this.kvs = {};  // Key-Value Store (for domains and passwords)
+        this.salt = crypto.randomBytes(16).toString('hex');
     }
 
-    // Initialize the password manager with a master password
-    static async init(password) {
-        const salt = getRandomBytes(16); // Generate a 128-bit salt
-
-        // Import the password as a key material for PBKDF2
-        const keyMaterial = await subtle.importKey(
-            "raw",
-            stringToBuffer(password),
-            "PBKDF2",
-            false,
-            ["deriveBits", "deriveKey"]
-        );
-
-        // Derive the master key using PBKDF2
-        const masterKey = await subtle.deriveKey(
-            { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
-            keyMaterial,
-            { name: "HMAC", hash: "SHA-256", length: 256 },
-            true,
-            ["sign", "verify"]
-        );
-
-        // Derive HMAC and AES keys from the master key
-        const hmacKey = await subtle.importKey(
-            "raw",
-            await subtle.sign("HMAC", masterKey, stringToBuffer("HMAC key")),
-            { name: "HMAC", hash: "SHA-256" },
-            false,
-            ["sign"]
-        );
-
-        const aesKey = await subtle.importKey(
-            "raw",
-            await subtle.sign("HMAC", masterKey, stringToBuffer("AES key")),
-            { name: "AES-GCM" },
-            true,
-            ["encrypt", "decrypt"]
-        );
-
-        return new PasswordManager(hmacKey, aesKey, {});
+    // Helper function to derive encryption key from master password and salt
+    _getKey(masterPassword) {
+        return crypto.pbkdf2Sync(masterPassword, this.salt, 100000, 32, 'sha256');
     }
 
-    // Load the password manager from a serialized representation
-    static async load(password, representation, trustedDataCheck) {
-        const data = JSON.parse(representation);
-        if (!data || !data.salt || !data.kvs) {
-            throw new Error('Invalid serialized data');
+    // Set a password for a domain
+    async set(masterPassword, domain, password) {
+        const key = this._getKey(masterPassword);
+        const iv = crypto.randomBytes(16);
+        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+        let encryptedPassword = cipher.update(password, 'utf8', 'hex');
+        encryptedPassword += cipher.final('hex');
+        this.kvs[domain] = { encryptedPassword, iv: iv.toString('hex') };
+    }
+
+    // Get a password for a domain
+    async get(masterPassword, domain) {
+        if (this.kvs[domain]) {
+            const { encryptedPassword, iv } = this.kvs[domain];
+            const key = this._getKey(masterPassword);
+            const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(iv, 'hex'));
+            let decryptedPassword = decipher.update(encryptedPassword, 'hex', 'utf8');
+            decryptedPassword += decipher.final('utf8');
+            return decryptedPassword;
+        } else {
+            return null; // No password found for the domain
         }
-
-        const salt = decodeBuffer(data.salt);
-
-        // Derive the master key using PBKDF2
-        const keyMaterial = await subtle.importKey(
-            "raw",
-            stringToBuffer(password),
-            "PBKDF2",
-            false,
-            ["deriveBits", "deriveKey"]
-        );
-
-        const derivedKey = await subtle.deriveKey(
-            { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
-            keyMaterial,
-            { name: "HMAC", hash: "SHA-256", length: 256 },
-            true,
-            ["sign", "verify"]
-        );
-
-        // Verify integrity if trustedDataCheck is provided
-        if (trustedDataCheck !== undefined) {
-            const currentHash = await subtle.digest("SHA-256", stringToBuffer(representation));
-            if (bufferToString(currentHash) !== trustedDataCheck) {
-                throw new Error("Tampering detected!");
-            }
-        }
-
-        // Set up HMAC and AES keys
-        const hmacKey = await subtle.importKey(
-            "raw",
-            derivedKey,
-            { name: "HMAC", hash: "SHA-256" },
-            false,
-            ["sign"]
-        );
-
-        const aesKey = await subtle.importKey(
-            "raw",
-            derivedKey,
-            { name: "AES-GCM" },
-            true,
-            ["encrypt", "decrypt"]
-        );
-
-        return new PasswordManager(hmacKey, aesKey, data.kvs);
     }
 
-    // Serialize the KVS and generate a SHA-256 hash for integrity
+    // Remove a password for a domain
+    async remove(masterPassword, domain) {
+        if (this.kvs[domain]) {
+            delete this.kvs[domain];
+            return true;
+        }
+        return false; // No password found for the domain
+    }
+
+    // Dump the database contents
     async dump() {
-        const serializedData = JSON.stringify({ kvs: this.kvs });
-        const hashBuffer = await subtle.digest("SHA-256", stringToBuffer(serializedData));
-        const hashString = bufferToString(hashBuffer); // Convert hash to string for storage
-        return [serializedData, hashString];
+        const dumpContents = JSON.stringify(this.kvs);
+        const checksum = crypto.createHash('sha256').update(dumpContents).digest('hex');
+        return [dumpContents, checksum];
     }
 
-    // Store or update a password for a given domain
-    async set(name, value) {
-        const hashedName = await subtle.sign("HMAC", this.hmacKey, stringToBuffer(name));
-        const iv = getRandomBytes(12); // AES-GCM requires a 96-bit IV
-
-        // Encrypt the password using AES-GCM
-        const encryptedValue = await subtle.encrypt(
-            { name: "AES-GCM", iv },
-            this.aesKey,
-            stringToBuffer(value)
-        );
-
-        // Generate signature to prevent swap attacks
-        const signature = await subtle.sign(
-            "HMAC",
-            this.hmacKey,
-            stringToBuffer(name + value)
-        );
-
-        // Store encrypted value along with IV and signature
-        this.kvs[bufferToString(hashedName)] = {
-            iv: encodeBuffer(iv),
-            value: encodeBuffer(encryptedValue),
-            signature: bufferToString(signature)
-        };
-    }
-
-    // Retrieve and decrypt the password for a given domain
-    async get(name) {
-        const hashedName = await subtle.sign("HMAC", this.hmacKey, stringToBuffer(name));
-        const record = this.kvs[bufferToString(hashedName)];
-        if (!record) return null;
-
-        // Verify signature to defend against swap attacks
-        const decryptedValue = await subtle.decrypt(
-            { name: "AES-GCM", iv: decodeBuffer(record.iv) },
-            this.aesKey,
-            decodeBuffer(record.value)
-        );
-        const valueString = bufferToString(decryptedValue);
-
-        const expectedSignature = await subtle.sign(
-            "HMAC",
-            this.hmacKey,
-            stringToBuffer(name + valueString)
-        );
-
-        if (bufferToString(expectedSignature) !== record.signature) {
-            throw new Error("Swap attack detected!");
+    // Load the database from dump contents
+    async load(masterPassword, dumpContents, checksum) {
+        const newChecksum = crypto.createHash('sha256').update(dumpContents).digest('hex');
+        if (newChecksum !== checksum) {
+            return false; // Checksum mismatch
         }
-
-        return valueString;
-    }
-
-    // Remove an entry from the KVS if it exists
-    async remove(name) {
-        const hashedName = await subtle.sign("HMAC", this.hmacKey, stringToBuffer(name));
-        const exists = this.kvs.hasOwnProperty(bufferToString(hashedName));
-        if (exists) delete this.kvs[bufferToString(hashedName)];
-        return exists;
+        const parsedContents = JSON.parse(dumpContents);
+        this.kvs = parsedContents;
+        return true;
     }
 }
 
