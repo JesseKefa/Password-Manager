@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 // Converts string to buffer
 function stringToBuffer(string) {
     return new TextEncoder().encode(string);
@@ -18,11 +20,9 @@ function decodeBuffer(base64) {
     return Buffer.from(base64, 'base64');
 }
 
-// Generates random bytes
+// Generates random bytes using Node.js crypto module
 function getRandomBytes(length) {
-    const bytes = new Uint8Array(length);
-    window.crypto.getRandomValues(bytes);
-    return bytes;
+    return crypto.randomBytes(length);
 }
 
 module.exports = { stringToBuffer, bufferToString, encodeBuffer, decodeBuffer, getRandomBytes };
