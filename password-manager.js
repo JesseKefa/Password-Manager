@@ -3,7 +3,7 @@ const fs = require('fs');
 
 class PasswordManager {
     constructor() {
-        this.kvs = {};  // Key-Value Store (for domains and passwords)
+        this.kvs = {};  
         this.salt = crypto.randomBytes(16).toString('hex');
     }
 
@@ -32,7 +32,7 @@ class PasswordManager {
             decryptedPassword += decipher.final('utf8');
             return decryptedPassword;
         } else {
-            return null; // No password found for the domain
+            return null; 
         }
     }
 
@@ -42,7 +42,7 @@ class PasswordManager {
             delete this.kvs[domain];
             return true;
         }
-        return false; // No password found for the domain
+        return false; 
     }
 
     // Dump the database contents
@@ -56,7 +56,7 @@ class PasswordManager {
     async load(masterPassword, dumpContents, checksum) {
         const newChecksum = crypto.createHash('sha256').update(dumpContents).digest('hex');
         if (newChecksum !== checksum) {
-            return false; // Checksum mismatch
+            return false; 
         }
         const parsedContents = JSON.parse(dumpContents);
         this.kvs = parsedContents;
