@@ -41,17 +41,14 @@ function promptUser() {
                 });
             } else if (option === '4') {
                 const [dumpContents, checksum] = await passwordManager.dump();
-                console.log(`Database dump: ${dumpContents}`);
+                console.log(`Database dump saved in passwords.json`);
                 console.log(`Checksum: ${checksum}\n`);
                 promptUser();
             } else if (option === '5') {
-                rl.question('Enter dump contents: ', async (dumpContents) => {
-                    rl.question('Enter checksum: ', async (checksum) => {
-                        const success = await passwordManager.load(masterPassword, dumpContents, checksum);
-                        console.log(success ? 'Database loaded successfully\n' : 'Failed to load database\n');
-                        promptUser();
-                    });
-                });
+
+                const success = await passwordManager.load(masterPassword);
+                console.log(success ? 'Database loaded successfully\n' : 'Failed to load database\n');
+                promptUser();
             } else if (option === '6') {
                 console.log('Exiting...');
                 rl.close();

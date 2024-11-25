@@ -1,66 +1,99 @@
-const crypto = require('crypto');
 const fs = require('fs');
+const crypto = require('crypto');
 
 class PasswordManager {
     constructor() {
-        this.kvs = {};  
-        this.salt = crypto.randomBytes(16).toString('hex');
+        this.database = {};  // In-memory password storage
     }
 
-    // Helper function to derive encryption key from master password and salt
-    _getKey(masterPassword) {
-        return crypto.pbkdf2Sync(masterPassword, this.salt, 100000, 32, 'sha256');
-    }
-
-    // Set a password for a domain
-    async set(masterPassword, domain, password) {
-        const key = this._getKey(masterPassword);
+    // Encrypts data using master password
+    encryptData(masterPassword, data) {
+        const key = crypto.createHash('sha256').update(masterPassword).digest();
         const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-        let encryptedPassword = cipher.update(password, 'utf8', 'hex');
-        encryptedPassword += cipher.final('hex');
-        this.kvs[domain] = { encryptedPassword, iv: iv.toString('hex') };
+        let encrypted = cipher.update(data, 'utf-8', 'hex');
+        encrypted += cipher.final('hex');
+        return iv.toString('hex') + ':' + encrypted;  // IV prepended for decryption
     }
 
-    // Get a password for a domain
+    // Decrypts data using master password
+    decryptData(masterPassword, encryptedData) {
+        const key = crypto.createHash('sha256').update(masterPassword).digest();
+        const [ivHex, encrypted] = encryptedData.split(':');
+        const iv = Buffer.from(ivHex, 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+        let decrypted = decipher.update(encrypted, 'hex', 'utf-8');
+        decrypted += decipher.final('utf-8');
+        return decrypted;
+    }
+
+    // Stores a password in memory (encrypted)
+    async set(masterPassword, domain, password) {
+        this.database[domain] = this.encryptData(masterPassword, password);
+    }
+
+    // Retrieves a password from memory (decrypted)
     async get(masterPassword, domain) {
-        if (this.kvs[domain]) {
-            const { encryptedPassword, iv } = this.kvs[domain];
-            const key = this._getKey(masterPassword);
-            const decipher = crypto.createDecipheriv('aes-256-cbc', key, Buffer.from(iv, 'hex'));
-            let decryptedPassword = decipher.update(encryptedPassword, 'hex', 'utf8');
-            decryptedPassword += decipher.final('utf8');
-            return decryptedPassword;
-        } else {
-            return null; 
+        if (this.database[domain]) {
+            return this.decryptData(masterPassword, this.database[domain]);
         }
+        return null; // Password not found
     }
 
-    // Remove a password for a domain
+    // Removes a password from memory
     async remove(masterPassword, domain) {
-        if (this.kvs[domain]) {
-            delete this.kvs[domain];
+        if (this.database[domain]) {
+            delete this.database[domain];
             return true;
         }
-        return false; 
+        return false;
     }
 
-    // Dump the database contents
+    // Dumps the encrypted password database to passwords.json
     async dump() {
-        const dumpContents = JSON.stringify(this.kvs);
-        const checksum = crypto.createHash('sha256').update(dumpContents).digest('hex');
-        return [dumpContents, checksum];
+        const serializedDatabase = JSON.stringify(this.database);  // Convert database to JSON string
+
+        // Encrypt the serialized database
+        const encryptedDatabase = this.encryptData(this.masterPassword, serializedDatabase);
+
+        // Calculate checksum for data integrity
+        const checksum = crypto.createHash('sha256').update(encryptedDatabase).digest('hex');
+
+        // Create an object to store encrypted data and checksum
+        const dumpObject = {
+            data: encryptedDatabase,
+            checksum: checksum
+        };
+
+        // Write the dump to passwords.json
+        fs.writeFileSync('passwords.json', JSON.stringify(dumpObject, null, 2));
+
+        console.log('Database dumped to passwords.json');
+        return [encryptedDatabase, checksum];
     }
 
-    // Load the database from dump contents
-    async load(masterPassword, dumpContents, checksum) {
-        const newChecksum = crypto.createHash('sha256').update(dumpContents).digest('hex');
-        if (newChecksum !== checksum) {
-            return false; 
+    // Loads the password database from passwords.json
+    async load(masterPassword) {
+        try {
+            // Read and parse the JSON file
+            const dumpContents = JSON.parse(fs.readFileSync('passwords.json'));
+
+            // Verify checksum
+            const currentChecksum = crypto.createHash('sha256').update(dumpContents.data).digest('hex');
+            if (currentChecksum !== dumpContents.checksum) {
+                throw new Error('Checksum verification failed');
+            }
+
+            // Decrypt the database and restore it to memory
+            const decryptedData = this.decryptData(masterPassword, dumpContents.data);
+            this.database = JSON.parse(decryptedData);
+
+            console.log('Database loaded successfully');
+            return true;
+        } catch (error) {
+            console.error('Failed to load database:', error.message);
+            return false;
         }
-        const parsedContents = JSON.parse(dumpContents);
-        this.kvs = parsedContents;
-        return true;
     }
 }
 

@@ -6,7 +6,10 @@ const PasswordManager = require('../password-manager');
 function expectReject(promise) {
     return promise.then(
         (result) => expect().fail(`Expected failure, but function returned ${result}`),
-        (error) => {},
+        (error) => {
+            // Log the expected rejection error if needed for debugging
+            console.log('Expected rejection:', error);
+        },
     );
 }
 
@@ -79,10 +82,15 @@ describe('Password manager', async function() {
             let checksum = data[1];
             let newKeychain = await PasswordManager.load(password, contents, checksum);
 
+            // Check if the dumped contents can be parsed without errors
+            let parseError;
+            try {
+                JSON.parse(contents);
+            } catch (e) {
+                parseError = e;
+            }
+            expect(parseError).to.be(undefined);  // Ensure no parsing errors occur
             
-            expect(async function() {
-                JSON.parse(contents)
-            }).not.to.throwException();
             for (let k in kvs) {
                 expect(await newKeychain.get(k)).to.equal(kvs[k]);
             }
@@ -113,7 +121,6 @@ describe('Password manager', async function() {
 
     describe('security', async function() {
 
-        
         it("doesn't store domain names and passwords in the clear", async function() {
             let keychain = await PasswordManager.init(password);
             let url = 'www.stanford.edu';
@@ -121,12 +128,11 @@ describe('Password manager', async function() {
             await keychain.set(url, pw);
             let data = await keychain.dump();
             let contents = data[0];
-            expect(contents).not.to.contain(password);
-            expect(contents).not.to.contain(url);
-            expect(contents).not.to.contain(pw);
+            expect(contents).not.to.contain(password);  // Ensure password is not in clear text
+            expect(contents).not.to.contain(url);      // Ensure URL is not in clear text
+            expect(contents).not.to.contain(pw);       // Ensure password is not in clear text
         });
 
-        
         it('includes a kvs object in the serialized dump', async function() {
             let keychain = await PasswordManager.init(password);
             for (let i = 0; i < 10; i++) {
